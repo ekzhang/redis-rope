@@ -2,13 +2,16 @@
 
 A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)>) data type for [Redis](https://redis.io), written in Zig and bundled as a [module](https://redis.io/docs/reference/modules/).
 
+## Overview
+
+Ropes store an ordered, indexed sequence of bytes. Ropes let you do some versatile range operations really fast:
+
+- **Add bytes** to the beginning, middle, or end, at any index.
+- **Delete any substring** or move it to a different position within the rope.
+- **Splice / concatenate any substring** of a rope with any other rope.
+- **Read any substring** with random access.
+
 ## Commands
-
-The rope stores an ordered, indexed sequence of bytes in a self-balancing binary search tree. All of the following operations execute in logarithmic time or better:
-
-- Bytes can be efficiently added to the beginning or end of the sequence, or any location in the middle by random-access index.
-- Any rope substrings can be deleted, moved to different locations within the rope, or swapped / concatenated with other ropes.
-- Any byte or contiguous byte range within the rope can be read.
 
 ### Read operations
 
@@ -18,7 +21,7 @@ These are fairly straightfoward: get the length of the rope, any individual byte
 - `ROPE.GET` _key_ _index_: **O(log N)**
 - `ROPE.GETRANGE` _key_ _start_ _stop_: **O(log N + K)**, where K is the length of the returned string
 
-All operations support negative indices, which start at the end of the rope.
+All operations support negative indices, which count backward from the end of the rope.
 
 ### Write operations
 
