@@ -5,6 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
+anyhow = "1.0.58"
 clap = { version = "3.2.14", features = ["derive"] }
-redis = "0.21.5"
+nix = "0.24.2"
+redis = { version = "0.21.5", features = ["aio", "tokio-comp"] }
 tokio = { version = "1.20.0", features = ["full"] }
