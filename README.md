@@ -6,12 +6,14 @@ A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)
 
 ## Overview
 
-Ropes store an ordered, indexed sequence of bytes. Ropes let you do some versatile range operations really fast:
+Ropes store an ordered, indexed sequence of bytes. Ropes let you do some range operations really fast:
 
 - **Add bytes** to the beginning, middle, or end, at any index.
 - **Delete any substring** or move it to a different position within the rope.
 - **Splice / concatenate any substring** of a rope with any other rope.
 - **Read any substring** with random access.
+
+The ropes in this module are backed by [splay trees](https://en.wikipedia.org/wiki/Splay_tree), which are a self-adjusting data structure that has amortized worst-case performance, while recently-accessed indices are also quick to access in subsequent operations.
 
 ## Commands
 
@@ -31,8 +33,8 @@ The append and insert operations push data to the end of the rope, or at an inde
 
 The splice operation is the most complicated and powerful. Given the keys of two ropes, `source` and `destination`, it appends `destination` to the end of `source` and deletes `destination`. If `start` is provided, the string is inserted at that index rather than appended to the end. If `stop` is provided, then the range of bytes from `start` to `stop` is also deleted from `source` and swapped with the rope at `destination`.
 
-- `ROPE.APPEND` _key_ _str_: **O(log N)**
-- `ROPE.INSERT` _key_ _index_ _str_: **O(log N)**
+- `ROPE.APPEND` _key_ _str_: **O(1)**
+- `ROPE.INSERT` _key_ _index_ _str_: **O(log N)**, or **O(1)** if _index_ is 0
 - `ROPE.DELRANGE` _key_ _start_ _stop_: **O(log N + K)**, where K is the number of bytes removed
 - `ROPE.SPLICE` _source_ _destination_ [_start_ \[_stop_\]]: **O(log N)**
 
