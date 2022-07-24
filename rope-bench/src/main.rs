@@ -3,6 +3,7 @@ use std::process::{ExitStatus, Stdio};
 
 use anyhow::Result;
 use clap::Parser;
+use indoc::formatdoc;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 use redis::{AsyncCommands, Client};
@@ -26,6 +27,8 @@ struct Args {
 
 /// Spawns a redis server at the location.
 async fn spawn_server(args: &Args) -> Result<Child> {
+    fs::remove_file(&args.socket).await.ok();
+
     let mut child = Command::new("redis-server")
         .arg("-")
         .stdin(Stdio::piped())
@@ -33,11 +36,15 @@ async fn spawn_server(args: &Args) -> Result<Child> {
         .spawn()?;
     {
         let mut stdin = child.stdin.take().unwrap();
-        let options = format!(
-            "port 0\nunixsocket {}\nloadmodule {}\n",
+        let options = formatdoc! {"
+            save \"\"
+            dbfilename \"\"
+            port 0
+            unixsocket {}
+            loadmodule {}",
             args.socket.display(),
             args.module_path.display(),
-        );
+        };
         stdin.write_all(options.as_bytes()).await?;
     }
 
