@@ -33,7 +33,7 @@ The splice operation is the most complicated and powerful. Given the keys of two
 
 - `ROPE.APPEND` _key_ _str_: **O(log N)**
 - `ROPE.INSERT` _key_ _index_ _str_: **O(log N)**
-- `ROPE.DELRANGE` _key_ _start_ _stop_: **O(log N)**
+- `ROPE.DELRANGE` _key_ _start_ _stop_: **O(log N + K)**, where K is the number of bytes removed
 - `ROPE.SPLICE` _source_ _destination_ [_start_ \[_stop_\]]: **O(log N)**
 
 Despite being quite powerful, each operation above takes logarithmic time, so they will remain fast for arbitrarily long ropes.
