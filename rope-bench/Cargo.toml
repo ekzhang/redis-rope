@@ -1,0 +1,10 @@
+[package]
+name = "rope-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+clap = { version = "3.2.14", features = ["derive"] }
+redis = "0.21.5"
+tokio = { version = "1.20.0", features = ["full"] }
