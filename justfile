@@ -10,5 +10,8 @@ build-linux-arm:
 test:
     zig build test
 
+server: build
+    redis-server --loadmodule zig-out/lib/libredisrope.dylib
+
 bench: build
     cargo run --release zig-out/lib/libredisrope.dylib
