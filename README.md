@@ -1,4 +1,6 @@
-# redis-rope
+<p align="center">
+<img src="https://i.imgur.com/j1mQdBH.png" alt="redis-rope" width="800">
+</p>
 
 A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)>) data type for [Redis](https://redis.io), written in Zig and bundled as a [module](https://redis.io/docs/reference/modules/).
 
