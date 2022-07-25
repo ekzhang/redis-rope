@@ -5,8 +5,8 @@ const rm = @import("vendor/redismodule.zig");
 /// An error set that can be returned from Redis operations.
 pub const RedisError = error{ err, arity, wrongtype };
 
-/// Convert a RedisError union to an integer return value.
-fn to_c(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
+/// Convert a RedisError union to the corresponding message reply.
+fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
     return if (result) rm.REDISMODULE_OK else |err| switch (err) {
         RedisError.err => rm.RedisModule_ReplyWithError(ctx, "ERR unexpected redis-rope failure"),
         RedisError.arity => rm.RedisModule_WrongArity(ctx),
@@ -20,7 +20,7 @@ pub fn RedisCommand(comptime func: fn (*rm.RedisModuleCtx, []*rm.RedisModuleStri
         fn command(ctx: *rm.RedisModuleCtx, argv: [*c]*rm.RedisModuleString, argc: c_int) callconv(.C) c_int {
             rm.RedisModule_AutoMemory(ctx);
             const args = argv[0..@intCast(usize, argc)];
-            return to_c(ctx, func(ctx, args));
+            return reply(ctx, func(ctx, args));
         }
     }.command;
 }

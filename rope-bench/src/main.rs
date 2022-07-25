@@ -94,18 +94,16 @@ where
 
     let start = Instant::now();
     let result = func(client.clone()).await;
+
+    let status = match &result {
+        Ok(()) => Green.paint("ok!"),
+        Err(_) => Red.paint("ERR"),
+    };
     let duration = format!("({:?})", start.elapsed());
     let duration = Style::new().dimmed().paint(duration);
+    println!("{status}  {duration}");
 
-    match result {
-        Ok(()) => println!("{}  {}", Green.paint("ok!"), duration),
-        Err(err) => {
-            println!("{}  {}", Red.paint("ERR"), duration);
-            println!("{:?}", err);
-            return Err(err);
-        }
-    }
-    Ok(())
+    result
 }
 
 async fn query<T: FromRedisValue>(cmd: &str, conn: &mut Connection) -> Result<T> {

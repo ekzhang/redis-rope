@@ -17,4 +17,4 @@ bench: build
     cargo run --release zig-out/lib/libredisrope.dylib
 
 bench-quiet: build
-    cargo run --release zig-out/lib/libredisrope.dylib --quiet
+    cargo run --release --quiet zig-out/lib/libredisrope.dylib --quiet
