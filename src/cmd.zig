@@ -4,10 +4,21 @@ const rm = @import("vendor/redismodule.zig");
 
 const RedisError = @import("interop.zig").RedisError;
 
+/// The type of a rope, initialized at module load time.
+pub var rope_type: *rm.RedisModuleType = undefined;
+
+/// Type methods defining the rope type.
+pub var rope_tm: rm.RedisModuleTypeMethods = .{
+    .version = rm.REDISMODULE_TYPE_METHOD_VERSION,
+};
+
 /// Check that a key for a rope type has a nonempty value.
 fn isPresent(key: *rm.RedisModuleKey) !bool {
-    if (rm.RedisModule_KeyType(key) != rm.REDISMODULE_KEYTYPE_EMPTY) { // todo: rope type
-        return RedisError.wrongtype;
+    if (rm.RedisModule_KeyType(key) != rm.REDISMODULE_KEYTYPE_EMPTY) {
+        if (rm.RedisModule_ModuleTypeGetType(key) != rope_type) {
+            return RedisError.wrongtype;
+        }
+        return true;
     }
     return false;
 }

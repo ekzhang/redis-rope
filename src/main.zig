@@ -20,6 +20,12 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
         return rm.REDISMODULE_ERR;
     }
 
+    if (rm.RedisModule_CreateDataType(ctx, "Rope--ekz", 0, &cmd.rope_tm)) |ty| {
+        cmd.rope_type = ty;
+    } else {
+        return rm.REDISMODULE_ERR;
+    }
+
     const commands = .{
         .{ "rope.hello", RopeHello_Command, "readonly fast", 0, 0, 0 },
         .{ "rope.len", RopeLen_Command, "readonly fast", 1, 1, 1 },

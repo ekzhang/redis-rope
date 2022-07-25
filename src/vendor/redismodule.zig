@@ -1277,23 +1277,23 @@ pub const RedisModuleConfigSetEnumFunc = fn ([*c]const u8, c_int, *anyopaque, [*
 pub const RedisModuleConfigApplyFunc = fn (*RedisModuleCtx, *anyopaque, [*c]*RedisModuleString) callconv(.C) c_int;
 pub const struct_RedisModuleTypeMethods = extern struct {
     version: u64,
-    rdb_load: RedisModuleTypeLoadFunc,
-    rdb_save: RedisModuleTypeSaveFunc,
-    aof_rewrite: RedisModuleTypeRewriteFunc,
-    mem_usage: RedisModuleTypeMemUsageFunc,
-    digest: RedisModuleTypeDigestFunc,
-    free: RedisModuleTypeFreeFunc,
-    aux_load: RedisModuleTypeAuxLoadFunc,
-    aux_save: RedisModuleTypeAuxSaveFunc,
-    aux_save_triggers: c_int,
-    free_effort: RedisModuleTypeFreeEffortFunc,
-    unlink: RedisModuleTypeUnlinkFunc,
-    copy: RedisModuleTypeCopyFunc,
-    defrag: RedisModuleTypeDefragFunc,
-    mem_usage2: RedisModuleTypeMemUsageFunc2,
-    free_effort2: RedisModuleTypeFreeEffortFunc2,
-    unlink2: RedisModuleTypeUnlinkFunc2,
-    copy2: RedisModuleTypeCopyFunc2,
+    rdb_load: ?RedisModuleTypeLoadFunc = null,
+    rdb_save: ?RedisModuleTypeSaveFunc = null,
+    aof_rewrite: ?RedisModuleTypeRewriteFunc = null,
+    mem_usage: ?RedisModuleTypeMemUsageFunc = null,
+    digest: ?RedisModuleTypeDigestFunc = null,
+    free: ?RedisModuleTypeFreeFunc = null,
+    aux_load: ?RedisModuleTypeAuxLoadFunc = null,
+    aux_save: ?RedisModuleTypeAuxSaveFunc = null,
+    aux_save_triggers: c_int = 0,
+    free_effort: ?RedisModuleTypeFreeEffortFunc = null,
+    unlink: ?RedisModuleTypeUnlinkFunc = null,
+    copy: ?RedisModuleTypeCopyFunc = null,
+    defrag: ?RedisModuleTypeDefragFunc = null,
+    mem_usage2: ?RedisModuleTypeMemUsageFunc2 = null,
+    free_effort2: ?RedisModuleTypeFreeEffortFunc2 = null,
+    unlink2: ?RedisModuleTypeUnlinkFunc2 = null,
+    copy2: ?RedisModuleTypeCopyFunc2 = null,
 };
 pub const RedisModuleTypeMethods = struct_RedisModuleTypeMethods;
 pub export var RedisModule_Alloc: fn (usize) callconv(.C) *anyopaque = undefined;
@@ -1435,7 +1435,7 @@ pub export var RedisModule_PublishMessageShard: fn (*RedisModuleCtx, *RedisModul
 pub export var RedisModule_GetContextFlags: fn (*RedisModuleCtx) callconv(.C) c_int = undefined;
 pub export var RedisModule_AvoidReplicaTraffic: fn (...) callconv(.C) c_int = undefined;
 pub export var RedisModule_PoolAlloc: fn (*RedisModuleCtx, usize) callconv(.C) *anyopaque = undefined;
-pub export var RedisModule_CreateDataType: fn (*RedisModuleCtx, [*c]const u8, c_int, [*c]RedisModuleTypeMethods) callconv(.C) *RedisModuleType = undefined;
+pub export var RedisModule_CreateDataType: fn (*RedisModuleCtx, [*c]const u8, c_int, [*c]RedisModuleTypeMethods) callconv(.C) ?*RedisModuleType = undefined;
 pub export var RedisModule_ModuleTypeSetValue: fn (*RedisModuleKey, *RedisModuleType, *anyopaque) callconv(.C) c_int = undefined;
 pub export var RedisModule_ModuleTypeReplaceValue: fn (*RedisModuleKey, *RedisModuleType, *anyopaque, [*c]*anyopaque) callconv(.C) c_int = undefined;
 pub export var RedisModule_ModuleTypeGetType: fn (*RedisModuleKey) callconv(.C) *RedisModuleType = undefined;
