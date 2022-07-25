@@ -30,7 +30,7 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
         .{ "rope.hello", RopeHello_Command, "readonly fast", 0, 0, 0 },
         .{ "rope.len", RopeLen_Command, "readonly fast", 1, 1, 1 },
         // .{ "rope.get", RopeGet_Command, "readonly fast", 1, 1, 1 },
-        // .{ "rope.get", RopeGetRange_Command, "readonly", 1, 1, 1 },
+        // .{ "rope.getrange", RopeGetRange_Command, "readonly", 1, 1, 1 },
         // .{ "rope.append", RopeAppend_Command, "write deny-oom fast", 1, 1, 1 },
         // .{ "rope.insert", RopeInsert_Command, "write deny-oom fast", 1, 1, 1 },
         // .{ "rope.delrange", RopeDelRange_Command, "write", 1, 1, 1 },

@@ -16,7 +16,7 @@ pub var rope_tm: rm.RedisModuleTypeMethods = .{
 fn isPresent(key: *rm.RedisModuleKey) !bool {
     if (rm.RedisModule_KeyType(key) != rm.REDISMODULE_KEYTYPE_EMPTY) {
         if (rm.RedisModule_ModuleTypeGetType(key) != rope_type) {
-            return RedisError.wrongtype;
+            return RedisError.WrongType;
         }
         return true;
     }
@@ -25,13 +25,13 @@ fn isPresent(key: *rm.RedisModuleKey) !bool {
 
 /// Print "Hello World!" to the console.
 pub fn ropeHello(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
-    if (args.len != 1) return RedisError.arity;
+    if (args.len != 1) return RedisError.Arity;
     _ = rm.RedisModule_ReplyWithSimpleString(ctx, "Hello World!");
 }
 
 /// Gets the length of a rope in bytes.
 pub fn ropeLen(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
-    if (args.len != 2) return RedisError.arity;
+    if (args.len != 2) return RedisError.Arity;
 
     const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ);
     _ = try isPresent(key);
