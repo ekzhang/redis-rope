@@ -1297,7 +1297,7 @@ pub const struct_RedisModuleTypeMethods = extern struct {
 };
 pub const RedisModuleTypeMethods = struct_RedisModuleTypeMethods;
 pub export var RedisModule_Alloc: fn (usize) callconv(.C) *anyopaque = undefined;
-pub export var RedisModule_TryAlloc: fn (usize) callconv(.C) *anyopaque = undefined;
+pub export var RedisModule_TryAlloc: fn (usize) callconv(.C) ?*anyopaque = undefined;
 pub export var RedisModule_Realloc: fn (*anyopaque, usize) callconv(.C) *anyopaque = undefined;
 pub export var RedisModule_Free: fn (*anyopaque) callconv(.C) void = undefined;
 pub export var RedisModule_Calloc: fn (usize, usize) callconv(.C) *anyopaque = undefined;

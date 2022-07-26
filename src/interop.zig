@@ -13,7 +13,7 @@ fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
     return if (result) rm.REDISMODULE_OK else |err| switch (err) {
         RedisError.Arity => rm.RedisModule_WrongArity(ctx),
         RedisError.WrongType => rm.RedisModule_ReplyWithError(ctx, rm.REDISMODULE_ERRORMSG_WRONGTYPE),
-        RedisError.OutOfMemory => rm.RedisModule_ReplyWithError(ctx, "ERR out of memory, allocation failed"),
+        RedisError.OutOfMemory => rm.RedisModule_ReplyWithError(ctx, "OOM out of memory, allocation failed"),
         RedisError.BadIndex => rm.RedisModule_ReplyWithError(ctx, "ERR index was not a valid integer"),
     };
 }
@@ -59,7 +59,7 @@ const RedisAllocator = struct {
         // Thin wrapper around regular malloc, overallocate to account for
         // alignment padding and store the orignal malloc()'ed pointer before
         // the aligned address.
-        var unaligned_ptr = @ptrCast([*]u8, rm.RedisModule_Alloc(len + alignment - 1 + @sizeOf(usize)) orelse return null);
+        var unaligned_ptr = @ptrCast([*]u8, rm.RedisModule_TryAlloc(len + alignment - 1 + @sizeOf(usize)) orelse return null);
         const unaligned_addr = @ptrToInt(unaligned_ptr);
         const aligned_addr = std.mem.alignForward(unaligned_addr + @sizeOf(usize), alignment);
         var aligned_ptr = unaligned_ptr + (aligned_addr - unaligned_addr);
@@ -116,6 +116,7 @@ const RedisAllocator = struct {
         if (new_len <= full_len) {
             return std.mem.alignAllocLen(full_len, new_len, len_align);
         }
+        return null;
     }
 
     fn free(
