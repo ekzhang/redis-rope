@@ -81,7 +81,7 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
             const e = std.math.min(getIndex(end, len), len - 1);
             if (s <= e) {
                 const size = e - s + 1;
-                var buf: [4096]u8 = undefined;
+                var buf: [16384]u8 = undefined;
                 var slice: []u8 = undefined;
                 if (size <= buf.len) {
                     slice = buf[0..size];
