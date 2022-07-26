@@ -100,3 +100,23 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
 
     _ = rm.RedisModule_ReplyWithNull(ctx);
 }
+
+/// Append a string onto the end of a rope.
+pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
+    if (args.len != 3) return RedisError.Arity;
+    const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ | rm.REDISMODULE_WRITE);
+    const bytes = interop.strToSlice(args[2]);
+
+    const rope2 = try Rope.create(interop.allocator, bytes);
+    errdefer rope2.destroy();
+    std.debug.assert(rope2.len() == bytes.len);
+
+    if (try readKey(key)) |rope| {
+        try rope.merge(rope2);
+        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, rope.len()));
+    } else {
+        const result = rm.RedisModule_ModuleTypeSetValue(key, rope_type, rope2);
+        if (result == rm.REDISMODULE_ERR) return RedisError.SetValue;
+        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
+    }
+}

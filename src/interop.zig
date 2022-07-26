@@ -6,7 +6,7 @@ const Allocator = std.mem.Allocator;
 const rm = @import("vendor/redismodule.zig");
 
 /// An error set that can be returned from Redis operations.
-pub const RedisError = error{ Arity, WrongType, OutOfMemory, BadIndex };
+pub const RedisError = error{ Arity, WrongType, OutOfMemory, BadIndex, SetValue };
 
 /// Convert a RedisError union to the corresponding message reply.
 fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
@@ -15,6 +15,7 @@ fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
         RedisError.WrongType => rm.RedisModule_ReplyWithError(ctx, rm.REDISMODULE_ERRORMSG_WRONGTYPE),
         RedisError.OutOfMemory => rm.RedisModule_ReplyWithError(ctx, "OOM out of memory, allocation failed"),
         RedisError.BadIndex => rm.RedisModule_ReplyWithError(ctx, "ERR index was not a valid integer"),
+        RedisError.SetValue => rm.RedisModule_ReplyWithError(ctx, "ERR failed to set value for key"),
     };
 }
 
@@ -36,6 +37,13 @@ pub fn strToIndex(str: *const rm.RedisModuleString) RedisError!i64 {
         return RedisError.BadIndex;
     }
     return num;
+}
+
+/// Fetches the underlying byte slice for a Redis string.
+pub fn strToSlice(str: *const rm.RedisModuleString) []const u8 {
+    var len: usize = undefined;
+    const ptr = rm.RedisModule_StringPtrLen(str, &len);
+    return ptr[0..len];
 }
 
 /// A memory allocator that uses the `RedisModule_*` memory allocation functions.
