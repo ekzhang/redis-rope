@@ -6,13 +6,13 @@ const rm = @import("vendor/redismodule.zig");
 const interop = @import("interop.zig");
 const cmd = @import("cmd.zig");
 
-export const RopeLen_Command = interop.RedisCommand(cmd.ropeLen);
-// export const RopeGet_Command = interop.RedisCommand(cmd.ropeGet);
-// export const RopeGetRange_Command = interop.RedisCommand(cmd.ropeGetRange);
-// export const RopeAppend_Command = interop.RedisCommand(cmd.ropeAppend);
-// export const RopeInsert_Command = interop.RedisCommand(cmd.ropeInsert);
-// export const RopeDelRange_Command = interop.RedisCommand(cmd.ropeDelRange);
-// export const RopeSplice_Command = interop.RedisCommand(cmd.ropeSplice);
+export const RopeLen_Command = interop.redisCommand(cmd.ropeLen);
+export const RopeGet_Command = interop.redisCommand(cmd.ropeGet);
+// export const RopeGetRange_Command = interop.redisCommand(cmd.ropeGetRange);
+// export const RopeAppend_Command = interop.redisCommand(cmd.ropeAppend);
+// export const RopeInsert_Command = interop.redisCommand(cmd.ropeInsert);
+// export const RopeDelRange_Command = interop.redisCommand(cmd.ropeDelRange);
+// export const RopeSplice_Command = interop.redisCommand(cmd.ropeSplice);
 
 export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
     if (rm.RedisModule_Init(ctx, "redisrope", 1, rm.REDISMODULE_APIVER_1) == rm.REDISMODULE_ERR) {
@@ -27,7 +27,7 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
 
     const commands = .{
         .{ "rope.len", RopeLen_Command, "readonly fast", 1, 1, 1 },
-        // .{ "rope.get", RopeGet_Command, "readonly fast", 1, 1, 1 },
+        .{ "rope.get", RopeGet_Command, "readonly fast", 1, 1, 1 },
         // .{ "rope.getrange", RopeGetRange_Command, "readonly", 1, 1, 1 },
         // .{ "rope.append", RopeAppend_Command, "write deny-oom fast", 1, 1, 1 },
         // .{ "rope.insert", RopeInsert_Command, "write deny-oom fast", 1, 1, 1 },

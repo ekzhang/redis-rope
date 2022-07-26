@@ -6,7 +6,7 @@ const Allocator = std.mem.Allocator;
 const rm = @import("vendor/redismodule.zig");
 
 /// An error set that can be returned from Redis operations.
-pub const RedisError = error{ Arity, WrongType, OutOfMemory };
+pub const RedisError = error{ Arity, WrongType, OutOfMemory, BadIndex };
 
 /// Convert a RedisError union to the corresponding message reply.
 fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
@@ -14,11 +14,12 @@ fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
         RedisError.Arity => rm.RedisModule_WrongArity(ctx),
         RedisError.WrongType => rm.RedisModule_ReplyWithError(ctx, rm.REDISMODULE_ERRORMSG_WRONGTYPE),
         RedisError.OutOfMemory => rm.RedisModule_ReplyWithError(ctx, "ERR out of memory, allocation failed"),
+        RedisError.BadIndex => rm.RedisModule_ReplyWithError(ctx, "ERR index was not a valid integer"),
     };
 }
 
 /// Define a new Redis command, wrapping some boilerplate.
-pub fn RedisCommand(comptime func: fn (*rm.RedisModuleCtx, []*rm.RedisModuleString) RedisError!void) rm.RedisModuleCmdFunc {
+pub fn redisCommand(comptime func: fn (*rm.RedisModuleCtx, []*rm.RedisModuleString) RedisError!void) rm.RedisModuleCmdFunc {
     return struct {
         fn command(ctx: *rm.RedisModuleCtx, argv: [*c]*rm.RedisModuleString, argc: c_int) callconv(.C) c_int {
             rm.RedisModule_AutoMemory(ctx);
@@ -26,6 +27,15 @@ pub fn RedisCommand(comptime func: fn (*rm.RedisModuleCtx, []*rm.RedisModuleStri
             return reply(ctx, func(ctx, args));
         }
     }.command;
+}
+
+/// Convert a `RedisModuleString` argument to an integer index.
+pub fn strToIndex(str: *const rm.RedisModuleString) RedisError!i64 {
+    var num: i64 = undefined;
+    if (rm.RedisModule_StringToLongLong(str, &num) == rm.REDISMODULE_ERR) {
+        return RedisError.BadIndex;
+    }
+    return num;
 }
 
 /// A memory allocator that uses the `RedisModule_*` memory allocation functions.

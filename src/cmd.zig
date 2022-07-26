@@ -2,7 +2,8 @@
 
 const rm = @import("vendor/redismodule.zig");
 
-const RedisError = @import("interop.zig").RedisError;
+const interop = @import("interop.zig");
+const RedisError = interop.RedisError;
 const Rope = @import("rope.zig").Rope;
 
 /// The type of a rope, initialized at module load time.
@@ -31,4 +32,26 @@ pub fn ropeLen(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
     const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ);
     const len = if (try readKey(key)) |rope| rope.len() else 0;
     _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(c_longlong, len));
+}
+
+/// Read a single byte character of a rope.
+pub fn ropeGet(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
+    if (args.len != 3) return RedisError.Arity;
+    const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ);
+    var index = try interop.strToIndex(args[2]);
+
+    var result: ?u8 = null;
+    if (try readKey(key)) |rope| {
+        const len = rope.len();
+        if (index < 0)
+            index += @intCast(i64, len);
+        if (index >= 0)
+            result = rope.get(@intCast(u64, index));
+    }
+
+    if (result) |c| {
+        _ = rm.RedisModule_ReplyWithVerbatimString(ctx, &[1]u8{c}, 1);
+    } else {
+        _ = rm.RedisModule_ReplyWithNull(ctx);
+    }
 }
