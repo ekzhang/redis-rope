@@ -6,14 +6,14 @@ const Allocator = std.mem.Allocator;
 const rm = @import("vendor/redismodule.zig");
 
 /// An error set that can be returned from Redis operations.
-pub const RedisError = error{ Err, Arity, WrongType };
+pub const RedisError = error{ Arity, WrongType, OutOfMemory };
 
 /// Convert a RedisError union to the corresponding message reply.
 fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
     return if (result) rm.REDISMODULE_OK else |err| switch (err) {
-        RedisError.Err => rm.RedisModule_ReplyWithError(ctx, "ERR unexpected redis-rope failure"),
         RedisError.Arity => rm.RedisModule_WrongArity(ctx),
         RedisError.WrongType => rm.RedisModule_ReplyWithError(ctx, rm.REDISMODULE_ERRORMSG_WRONGTYPE),
+        RedisError.OutOfMemory => rm.RedisModule_ReplyWithError(ctx, "ERR out of memory, allocation failed"),
     };
 }
 

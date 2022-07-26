@@ -3,6 +3,7 @@
 const rm = @import("vendor/redismodule.zig");
 
 const RedisError = @import("interop.zig").RedisError;
+const rope = @import("rope.zig");
 
 /// The type of a rope, initialized at module load time.
 pub var rope_type: *rm.RedisModuleType = undefined;
