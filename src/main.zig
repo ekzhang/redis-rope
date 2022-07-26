@@ -6,7 +6,6 @@ const rm = @import("vendor/redismodule.zig");
 const interop = @import("interop.zig");
 const cmd = @import("cmd.zig");
 
-export const RopeHello_Command = interop.RedisCommand(cmd.ropeHello);
 export const RopeLen_Command = interop.RedisCommand(cmd.ropeLen);
 // export const RopeGet_Command = interop.RedisCommand(cmd.ropeGet);
 // export const RopeGetRange_Command = interop.RedisCommand(cmd.ropeGetRange);
@@ -27,7 +26,6 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
     }
 
     const commands = .{
-        .{ "rope.hello", RopeHello_Command, "readonly fast", 0, 0, 0 },
         .{ "rope.len", RopeLen_Command, "readonly fast", 1, 1, 1 },
         // .{ "rope.get", RopeGet_Command, "readonly fast", 1, 1, 1 },
         // .{ "rope.getrange", RopeGetRange_Command, "readonly", 1, 1, 1 },
