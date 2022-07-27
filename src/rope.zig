@@ -190,7 +190,7 @@ pub const Rope = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn len(self: *Rope) u64 {
+    pub fn len(self: *const Rope) u64 {
         return self.suf_len + if (self.root) |r| r.size else 0;
     }
 
@@ -274,5 +274,38 @@ pub const Rope = struct {
             self.root = node;
             return node.data[i - (if (node.child[0]) |c| c.size else 0)];
         }
+    }
+
+    /// Return an iterator over chunks in a range of bytes.
+    pub fn chunks(self: *Rope, start: u64, end: u64) Chunks {
+        std.debug.assert(start <= end and end <= self.len());
+        return .{ .rope = self, .start = start, .end = end };
+    }
+};
+
+pub const Chunks = struct {
+    const block_size = 16384;
+
+    rope: *Rope,
+    start: u64,
+    end: u64,
+    buf: [block_size]u8 = undefined,
+
+    /// Count how many chunks are left in the iterator.
+    pub fn remaining(self: *const Chunks) u64 {
+        return std.math.divCeil(u64, self.end - self.start, block_size) catch unreachable;
+    }
+
+    /// Return the next chunk of this iterator, advancing the index.
+    pub fn next(self: *Chunks) ?[]u8 {
+        if (self.start >= self.end) {
+            return null;
+        }
+        const len = std.math.min(self.end - self.start, block_size);
+        for (self.buf[0..len]) |_, i| {
+            self.buf[i] = self.rope.get(self.start + i).?;
+        }
+        self.start += len;
+        return self.buf[0..len];
     }
 };

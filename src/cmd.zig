@@ -14,7 +14,59 @@ pub var rope_type: *rm.RedisModuleType = undefined;
 /// Type methods defining the rope type.
 pub var rope_tm: rm.RedisModuleTypeMethods = .{
     .version = rm.REDISMODULE_TYPE_METHOD_VERSION,
+    .rdb_load = ropeRdbLoad,
+    .rdb_save = ropeRdbSave,
+    .aof_rewrite = ropeAofRewrite,
+    .free = ropeFree,
 };
+
+export fn ropeRdbLoad(io: *rm.RedisModuleIO, encver: c_int) ?*anyopaque {
+    if (encver != 0) {
+        // Can't load data with this version number.
+        return null;
+    }
+    const size = rm.RedisModule_LoadUnsigned(io);
+    const bytes = interop.allocator.alloc(u8, size) catch return null;
+    defer interop.allocator.free(bytes);
+
+    const blocks = rm.RedisModule_LoadUnsigned(io);
+    var i: u64 = 0;
+    var cursor: u64 = 0;
+    while (i < blocks) : (i += 1) {
+        var len: u64 = undefined;
+        if (rm.RedisModule_LoadStringBuffer(io, &len)) |ptr| {
+            std.mem.copy(u8, bytes[cursor..], ptr[0..len]);
+            cursor += len;
+            rm.RedisModule_Free(ptr);
+        } else return null;
+    }
+    std.debug.assert(cursor == size);
+    return Rope.create(interop.allocator, bytes) catch null;
+}
+
+export fn ropeRdbSave(io: *rm.RedisModuleIO, value: *anyopaque) void {
+    const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
+    const size = rope.len();
+    rm.RedisModule_SaveUnsigned(io, size);
+    var chunks = rope.chunks(0, size);
+    rm.RedisModule_SaveUnsigned(io, chunks.remaining());
+    while (chunks.next()) |buf| {
+        rm.RedisModule_SaveStringBuffer(io, &buf[0], buf.len);
+    }
+}
+
+export fn ropeAofRewrite(io: *rm.RedisModuleIO, key: *rm.RedisModuleString, value: *anyopaque) void {
+    const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
+    var chunks = rope.chunks(0, rope.len());
+    while (chunks.next()) |buf| {
+        rm.RedisModule_EmitAOF(io, "ROPE.APPEND", "sb", key, &buf[0], buf.len);
+    }
+}
+
+export fn ropeFree(value: *anyopaque) void {
+    const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
+    rope.destroy();
+}
 
 /// Check that a key for a rope type has a nonempty value and fetch it.
 fn readKey(key: *rm.RedisModuleKey) !?*Rope {
@@ -86,19 +138,22 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
             const s = getIndex(start, len);
             const e = std.math.min(getIndex(end, len), len - 1);
             if (s <= e) {
-                const size = e - s + 1;
-                var buf: [16384]u8 = undefined;
                 var slice: []u8 = undefined;
-                if (size <= buf.len) {
-                    slice = buf[0..size];
+                var chunks = rope.chunks(s, e + 1);
+                if (chunks.remaining() == 1) {
+                    slice = chunks.next().?;
+                    std.debug.assert(chunks.next() == null);
                 } else {
-                    slice = try interop.allocator.alloc(u8, size);
+                    slice = try interop.allocator.alloc(u8, e - s + 1);
                     defer interop.allocator.free(slice);
+                    var cursor: u64 = 0;
+                    while (chunks.next()) |buf| {
+                        std.mem.copy(u8, slice[cursor..], buf[0..]);
+                        cursor += buf.len;
+                    }
+                    std.debug.assert(cursor == slice.len);
                 }
-                std.debug.assert(slice.len == size);
-                for (slice) |_, i|
-                    slice[i] = rope.get(s + i).?;
-                _ = rm.RedisModule_ReplyWithStringBuffer(ctx, &slice[0], size);
+                _ = rm.RedisModule_ReplyWithStringBuffer(ctx, &slice[0], slice.len);
                 return;
             }
         }
