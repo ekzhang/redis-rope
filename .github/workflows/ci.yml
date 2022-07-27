@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: 0.9.0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v1
+
+      - uses: extractions/setup-just@v1
+
+      - run: just test
+
+      - run: just bench
+
+  format_lint:
+    name: Format and Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: 0.9.0
+
+      - run: zig fmt --check .
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v1
+
+      - run: cargo +nightly fmt -- --check
+
+      - run: cargo clippy -- -D warnings
