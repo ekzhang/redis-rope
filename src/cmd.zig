@@ -18,6 +18,11 @@ pub var rope_tm: rm.RedisModuleTypeMethods = .{
     .rdb_save = ropeRdbSave,
     .aof_rewrite = ropeAofRewrite,
     .free = ropeFree,
+
+    // Optional fields
+    .digest = ropeDigest,
+    .mem_usage = ropeMemUsage,
+    .free_effort = ropeFreeEffort,
 };
 
 export fn ropeRdbLoad(io: *rm.RedisModuleIO, encver: c_int) ?*anyopaque {
@@ -66,6 +71,25 @@ export fn ropeAofRewrite(io: *rm.RedisModuleIO, key: *rm.RedisModuleString, valu
 export fn ropeFree(value: *anyopaque) void {
     const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
     rope.destroy();
+}
+
+export fn ropeDigest(md: *rm.RedisModuleDigest, value: *anyopaque) void {
+    const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
+    var chunks = rope.chunks(0, rope.len());
+    while (chunks.next()) |buf| {
+        rm.RedisModule_DigestAddStringBuffer(md, &buf[0], buf.len);
+    }
+    rm.RedisModule_DigestEndSequence(md);
+}
+
+export fn ropeMemUsage(value: *const anyopaque) usize {
+    const rope = @ptrCast(*const Rope, @alignCast(@alignOf(*Rope), value));
+    return @intCast(usize, rope.memusage());
+}
+
+export fn ropeFreeEffort(_: *rm.RedisModuleString, value: *const anyopaque) usize {
+    const rope = @ptrCast(*const Rope, @alignCast(@alignOf(*Rope), value));
+    return @intCast(usize, rope.numnodes() + 1);
 }
 
 /// Check that a key for a rope type has a nonempty value and fetch it.
@@ -179,4 +203,5 @@ pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
         try setKey(key, rope2);
         _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
     }
+    _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }

@@ -11,7 +11,7 @@ test:
     zig build test
 
 server: build
-    redis-server --loadmodule zig-out/lib/libredisrope.dylib
+    redis-server --loadmodule zig-out/lib/libredisrope.dylib --enable-debug-command local
 
 bench: build
     cargo run --release zig-out/lib/libredisrope.dylib

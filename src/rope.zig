@@ -22,6 +22,7 @@ comptime {
 const Node = struct {
     parent: ?*Node = null,
     child: [2]?*Node = .{ null, null },
+    nodes: u64 = 1,
     size: u64 = 0,
     len: u8 = 0,
     data: [cap_bytes]u8 = undefined,
@@ -32,8 +33,11 @@ const Node = struct {
 
     fn update(self: *Node) void {
         self.size = self.len;
-        if (self.child[0]) |c| self.size += c.size;
-        if (self.child[1]) |c| self.size += c.size;
+        self.nodes = 1;
+        for (self.child) |ch| if (ch) |c| {
+            self.size += c.size;
+            self.nodes += c.nodes;
+        };
     }
 
     fn connect(pa: ?*Node, ch: ?*Node, x: u1) void {
@@ -280,6 +284,16 @@ pub const Rope = struct {
     pub fn chunks(self: *Rope, start: u64, end: u64) Chunks {
         std.debug.assert(start <= end and end <= self.len());
         return .{ .rope = self, .start = start, .end = end };
+    }
+
+    /// Returns the total memory usage of this data structure, in bytes.
+    pub fn memusage(self: *const Rope) u64 {
+        return @sizeOf(Rope) + @sizeOf(Node) * self.numnodes();
+    }
+
+    /// Returns the total number of splay tree nodes in this data structure.
+    pub fn numnodes(self: *const Rope) u64 {
+        return if (self.root) |r| r.nodes else 0;
     }
 };
 
