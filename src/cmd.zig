@@ -28,6 +28,12 @@ fn readKey(key: *rm.RedisModuleKey) !?*Rope {
     return null;
 }
 
+/// Set the value of an empty key to a rope type.
+fn setKey(key: *rm.RedisModuleKey, rope: *Rope) !void {
+    const result = rm.RedisModule_ModuleTypeSetValue(key, rope_type, rope);
+    if (result == rm.REDISMODULE_ERR) return RedisError.SetValue;
+}
+
 /// Normalize an index, possibly negative, and clamp it to the length boundary.
 fn getIndex(index: i64, len: u64) u64 {
     if (index < 0) {
@@ -115,8 +121,7 @@ pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
         try rope.merge(rope2);
         _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, rope.len()));
     } else {
-        const result = rm.RedisModule_ModuleTypeSetValue(key, rope_type, rope2);
-        if (result == rm.REDISMODULE_ERR) return RedisError.SetValue;
+        try setKey(key, rope2);
         _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
     }
 }
