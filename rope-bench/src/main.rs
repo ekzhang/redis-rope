@@ -141,6 +141,19 @@ async fn rope_len(client: Client) -> Result<()> {
     Ok(())
 }
 
+async fn append_64mb(client: Client) -> Result<()> {
+    let conn = &mut client.get_async_connection().await?;
+
+    for i in 0..4096 {
+        let result: i64 = query("ROPE.APPEND a 1234567890123456", conn).await?;
+        ensure!(result == (i + 1) * 16);
+    }
+    let result: i64 = query("ROPE.LEN a", conn).await?;
+    ensure!(result == 65536);
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -154,6 +167,7 @@ async fn main() -> Result<()> {
         println!("{}", Blue.paint("------ STARTING TESTS ------"));
         run_test(&client, basic_ops).await?;
         run_test(&client, rope_len).await?;
+        run_test(&client, append_64mb).await?;
         println!("{}", Blue.paint("----- ALL TESTS PASSED -----"));
     }
 

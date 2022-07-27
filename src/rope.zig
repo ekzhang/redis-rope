@@ -220,6 +220,7 @@ pub const Rope = struct {
                 Node.connect(node, self.root, 0);
                 node.update();
                 self.root = node;
+                self.suf_len = 0;
             }
         } else {
             // Concatenate our suffix with the start of the other rope's root.
