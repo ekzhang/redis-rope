@@ -1,3 +1,5 @@
+sharedlib := if os() == "macos" { "libredisrope.dylib" } else { "libredisrope.so" }
+
 build:
     zig build -Drelease-fast
 
@@ -11,10 +13,10 @@ test:
     zig build test
 
 server: build
-    redis-server --loadmodule zig-out/lib/libredisrope.dylib --enable-debug-command local
+    redis-server --loadmodule zig-out/lib/{{sharedlib}} --enable-debug-command local
 
 bench: build
-    cargo run --release zig-out/lib/libredisrope.dylib
+    cargo run --release zig-out/lib/{{sharedlib}}
 
 bench-quiet: build
-    cargo run --release --quiet zig-out/lib/libredisrope.dylib --quiet
+    cargo run --release --quiet zig-out/lib/{{sharedlib}} --quiet
