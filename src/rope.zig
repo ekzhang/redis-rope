@@ -164,6 +164,17 @@ fn createTree(allocator: Allocator, data: []const u8) Allocator.Error!*Node {
     return node;
 }
 
+/// Utility method for concatenating a slice to the front of another.
+fn concat_front(dest: []u8, src: []u8) void {
+    std.debug.assert(dest.len >= src.len);
+    var i = dest.len - src.len;
+    while (i > 0) {
+        i -= 1;
+        dest[i + src.len] = dest[i];
+    }
+    std.mem.copy(u8, dest[0..], src);
+}
+
 pub const Rope = struct {
     allocator: Allocator,
     root: ?*Node = null,
@@ -198,6 +209,10 @@ pub const Rope = struct {
         return self.suf_len + if (self.root) |r| r.size else 0;
     }
 
+    pub fn empty(self: *const Rope) bool {
+        return self.len() == 0;
+    }
+
     /// Merge this rope with another rope, taking ownership of it.
     ///
     /// On out-of-memory error, this function is safe. Neither rope is changed
@@ -229,13 +244,8 @@ pub const Rope = struct {
             std.debug.assert(root.child[0] == null);
             const total = root.len + self.suf_len;
             if (total < cap_bytes) {
-                var i = root.len;
-                while (i > 0) {
-                    i -= 1;
-                    root.data[i + self.suf_len] = root.data[i];
-                }
-                std.mem.copy(u8, root.data[0..], self.suf_buf[0..self.suf_len]);
                 root.len += self.suf_len;
+                concat_front(root.data[0..root.len], self.suf_buf[0..self.suf_len]);
             } else {
                 std.debug.assert(root.len >= min_bytes);
                 const node = try self.allocator.create(Node);
@@ -259,6 +269,107 @@ pub const Rope = struct {
             std.mem.swap(Rope, self, other);
         }
         other.destroy();
+    }
+
+    /// Splits this rope into two at the given index.
+    ///
+    /// The current rope will be the first part, and the second part starting at
+    /// and including the index will be returned as a new rope.
+    ///
+    /// On out-of-memory error, the rope is not modified.
+    pub fn split(self: *Rope, index: u64) !*Rope {
+        const length = self.len();
+        if (index > length) {
+            // If the index is out-of-range, just return an empty rope.
+            return try Rope.create(self.allocator, &.{});
+        }
+        if (index >= length - self.suf_len) {
+            const suf_rem = @intCast(u8, index - (length - self.suf_len));
+            const rope = try create(self.allocator, self.suf_buf[suf_rem..self.suf_len]);
+            self.suf_len = suf_rem;
+            return rope;
+        }
+        // The index is inside the splay tree. We split the tree now, although
+        // it turns out that we never need to allocate new nodes here.
+        std.debug.assert(index < self.root.?.size);
+        const rope = try self.allocator.create(Rope);
+        errdefer rope.destroy();
+        rope.* = .{
+            .allocator = self.allocator,
+            .suf_len = self.suf_len, // copy suffix verbatim
+            .suf_buf = self.suf_buf, // copy suffix verbatim
+        };
+
+        _ = self.get(index); // splay
+        const root = self.root.?;
+        const left_len = if (root.child[0]) |c| c.size else 0;
+        std.debug.assert(left_len <= index and index < left_len + root.len);
+        const pivot = @intCast(u8, index - left_len);
+
+        // Copy the left half of the node's data and establish the a new root.
+        if (index - left_len >= min_bytes) { // doesn't fit in self.suf_buf
+            const new_root = try self.allocator.create(Node);
+            new_root.* = .{ .len = pivot };
+            std.mem.copy(u8, new_root.data[0..], root.data[0..pivot]);
+            Node.connect(new_root, root.child[0], 0);
+            new_root.update();
+            self.root = new_root;
+            self.suf_len = 0;
+        } else { // fits in self.suf_buf
+            std.mem.copy(u8, self.suf_buf[0..], root.data[0..pivot]);
+            self.suf_len = pivot;
+            self.root = root.child[0];
+            if (self.root) |n| n.parent = null;
+        }
+
+        // Create the right half of the rope. First, we fix invariants.
+        root.child[0] = null;
+        std.mem.copy(u8, root.data[0..], root.data[pivot..root.len]);
+        root.len -= pivot;
+        root.update();
+
+        // We could just set `rope.root = root;` now, but we need to check and
+        // fix one more invariant: each node has `len >= min_bytes`.
+        if (root.len >= min_bytes) {
+            rope.root = root;
+        } else if (root.child[1]) |right_child| {
+            // Splay the next inorder node to the top and do a left concatenation.
+            right_child.parent = null;
+            root.child[1] = null;
+            const new_root = access(right_child, 0);
+            std.debug.assert(new_root.child[0] == null);
+            rope.root = new_root;
+            if (root.len + new_root.len <= cap_bytes) {
+                new_root.len += root.len;
+                concat_front(new_root.data[0..new_root.len], root.data[0..root.len]);
+                new_root.update();
+                root.destroy(self.allocator);
+            } else {
+                const copy_len = min_bytes - root.len;
+                std.mem.copy(u8, root.data[root.len..], new_root.data[0..copy_len]);
+                std.mem.copy(u8, new_root.data[0..], new_root.data[copy_len..new_root.len]);
+                root.len += copy_len;
+                new_root.len -= copy_len;
+                Node.connect(new_root, root, 0);
+                root.update();
+                new_root.update();
+            }
+        } else if (rope.suf_len + root.len >= min_bytes) {
+            // Concatenate the suffix onto the node directly.
+            std.debug.assert(rope.suf_len + root.len <= cap_bytes);
+            std.mem.copy(u8, root.data[root.len..], rope.suf_buf[0..rope.suf_len]);
+            root.len += rope.suf_len;
+            root.update();
+            rope.suf_len = 0;
+            rope.root = root;
+        } else {
+            // Delete the root and only use the suffix buffer.
+            rope.suf_len += root.len;
+            concat_front(rope.suf_buf[0..rope.suf_len], root.data[0..root.len]);
+            root.destroy(self.allocator);
+        }
+
+        return rope;
     }
 
     /// Get a byte of the rope.

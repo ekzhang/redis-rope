@@ -31,7 +31,7 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
         .{ "rope.getrange", RopeGetRange_Command, "readonly", 1, 1, 1 },
         .{ "rope.append", RopeAppend_Command, "write deny-oom fast", 1, 1, 1 },
         // .{ "rope.insert", RopeInsert_Command, "write deny-oom fast", 1, 1, 1 },
-        // .{ "rope.delrange", RopeDelRange_Command, "write deny-oom", 1, 1, 1 },
+        // .{ "rope.delrange", RopeDelRange_Command, "write fast", 1, 1, 1 },
         // .{ "rope.splice", RopeSplice_Command, "write deny-oom fast", 1, 2, 1 },
     };
 
