@@ -22,6 +22,7 @@ Some data structures tend to be too theoretical. This module attempts to provide
 - **The memory usage of a rope is proportional to its length.** It must be a small constant factor more than the number of bytes stored. (Data is stored in chunks; the constant varies based on fragmentation.)
 - **All operations should be fast in practice.** We aim to approach the speed of ordinary strings for simple operations and to be hundreds of times faster for complex operations.
 - **This module never panics.** If a memory allocation fails, it exits gracefully with an error. The database will never be left in a partially modified or inconsistent state.
+- **Stack size is limited and should not overflow.** No operations on arbitrary trees are implemented recursively. We do not create unbounded stack buffers.
 - **Micro-optimizations are not accepted if they make the code less clear.** Safety and correctness is paramount, and code needs to be easily understood by the reader.
 
 ## Installation
