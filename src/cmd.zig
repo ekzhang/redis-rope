@@ -205,3 +205,35 @@ pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
     }
     _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }
+
+/// Insert a string at a specific index in a rope.
+pub fn ropeInsert(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
+    if (args.len != 4) return RedisError.Arity;
+    const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ | rm.REDISMODULE_WRITE);
+    const index = try interop.strToIndex(args[2]);
+    const bytes = interop.strToSlice(args[3]);
+
+    const rope2 = try Rope.create(interop.allocator, bytes);
+    errdefer rope2.destroy();
+    std.debug.assert(rope2.len() == bytes.len);
+
+    if (try readKey(key)) |rope| {
+        const i = getIndex(index, rope.len());
+        if (i == 0) {
+            try rope2.merge(rope);
+            rope.* = rope2.*;
+        } else if (i == rope.len()) {
+            try rope.merge(rope2);
+        } else {
+            const rope3 = try rope.split(i);
+            // TODO: Figure out what to do about error handling here.
+            rope.merge(rope2) catch unreachable;
+            rope.merge(rope3) catch unreachable;
+        }
+        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, rope.len()));
+    } else {
+        try setKey(key, rope2);
+        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
+    }
+    _ = rm.RedisModule_ReplicateVerbatim(ctx);
+}
