@@ -6,7 +6,7 @@ A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)
 
 ## Overview
 
-Ropes store an ordered, indexed sequence of bytes, similar to binary strings. Unlike strings, ropes let you do some operations really fast (logarithmic time):
+Ropes store an ordered, indexed sequence of bytes, similar to binary strings. Unlike strings, ropes let you do some operations really fast (in logarithmic time):
 
 - **Add bytes** to the beginning, middle, or end — any index you want.
 - **Delete any rope substring** or move it to a different position within the rope.
@@ -14,6 +14,15 @@ Ropes store an ordered, indexed sequence of bytes, similar to binary strings. Un
 - **Read any substring** with random access.
 
 The ropes in this module are backed by [splay trees](https://en.wikipedia.org/wiki/Splay_tree), which are a self-adjusting data structure that has amortized worst-case performance, while recently-accessed indices are also quick to access in subsequent operations.
+
+### Design
+
+Some data structures tend to be too theoretical. This module attempts to provide practical guarantees:
+
+- **The memory usage of a rope is proportional to its length.** It must be a small constant factor more than the number of bytes stored. (Data is stored in chunks; the constant varies based on fragmentation.)
+- **All operations should be fast in practice.** We aim to approach the speed of ordinary strings for simple operations and to be hundreds of times faster for complex operations.
+- **This module never panics.** If a memory allocation fails, it exits gracefully with an error. The database will never be left in a partially modified or inconsistent state.
+- **Micro-optimizations are not accepted if they make the code less clear.** Safety and correctness is paramount, and code needs to be easily understood by the reader.
 
 ## Installation
 
@@ -92,6 +101,8 @@ redis:6379> ROPE.APPEND key1 "hello"
 (integer) 5
 redis:6379> ROPE.LEN key1
 (integer) 5
+redis:6379> ROPE.GET key1 2
+"l"
 redis:6379> ROPE.APPEND key1 " world!"
 (integer) 12
 redis:6379> ROPE.GETRANGE key1 0 -1
@@ -127,3 +138,5 @@ redis:6379> DEL key1
 ## Acknowledgements
 
 Created by Eric Zhang ([@ekzhang1](https://twitter.com/ekzhang1)). Licensed under the [MIT license](LICENSE).
+
+Thanks to [antirez](http://antirez.com/) for creating Redis and [Sleator & Tarjan](https://www.cs.cmu.edu/~sleator/papers/self-adjusting.pdf) for discovering splay trees.
