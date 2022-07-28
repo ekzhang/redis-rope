@@ -56,7 +56,7 @@ export fn ropeRdbSave(io: *rm.RedisModuleIO, value: *anyopaque) void {
     var chunks = rope.chunks(0, size);
     rm.RedisModule_SaveUnsigned(io, chunks.remaining());
     while (chunks.next()) |buf| {
-        rm.RedisModule_SaveStringBuffer(io, &buf[0], buf.len);
+        rm.RedisModule_SaveStringBuffer(io, buf.ptr, buf.len);
     }
 }
 
@@ -64,7 +64,7 @@ export fn ropeAofRewrite(io: *rm.RedisModuleIO, key: *rm.RedisModuleString, valu
     const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
     var chunks = rope.chunks(0, rope.len());
     while (chunks.next()) |buf| {
-        rm.RedisModule_EmitAOF(io, "ROPE.APPEND", "sb", key, &buf[0], buf.len);
+        rm.RedisModule_EmitAOF(io, "ROPE.APPEND", "sb", key, buf.ptr, buf.len);
     }
 }
 
@@ -77,7 +77,7 @@ export fn ropeDigest(md: *rm.RedisModuleDigest, value: *anyopaque) void {
     const rope = @ptrCast(*Rope, @alignCast(@alignOf(*Rope), value));
     var chunks = rope.chunks(0, rope.len());
     while (chunks.next()) |buf| {
-        rm.RedisModule_DigestAddStringBuffer(md, &buf[0], buf.len);
+        rm.RedisModule_DigestAddStringBuffer(md, buf.ptr, buf.len);
     }
     rm.RedisModule_DigestEndSequence(md);
 }
@@ -177,7 +177,7 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
                     }
                     std.debug.assert(cursor == slice.len);
                 }
-                _ = rm.RedisModule_ReplyWithStringBuffer(ctx, &slice[0], slice.len);
+                _ = rm.RedisModule_ReplyWithStringBuffer(ctx, slice.ptr, slice.len);
                 return;
             }
         }
