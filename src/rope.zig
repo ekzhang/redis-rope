@@ -299,7 +299,7 @@ pub const Rope = struct {
 };
 
 pub const Chunks = struct {
-    const block_size = 16384;
+    const block_size = 65536;
 
     rope: *Rope,
     start: u64,
