@@ -237,3 +237,33 @@ pub fn ropeInsert(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
     }
     _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }
+
+/// Delete a range of bytes from a rope.
+pub fn ropeDelRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
+    if (args.len != 4) return RedisError.Arity;
+    const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ | rm.REDISMODULE_WRITE);
+    var start = try interop.strToIndex(args[2]);
+    var end = try interop.strToIndex(args[3]);
+
+    var final_len: u64 = 0;
+    if (try readKey(key)) |rope| {
+        const len = rope.len();
+        if (len > 0) {
+            const s = getIndex(start, len);
+            const e = std.math.min(getIndex(end, len), len - 1);
+            if (s == 0 and e == len - 1) {
+                // Special case: Delete the entire rope.
+                _ = rm.RedisModule_UnlinkKey(key);
+            } else {
+                // TODO: Figure out what to do about error handling here.
+                const rope2 = try rope.split(s);
+                const rope3 = rope2.split(e - s + 1) catch unreachable;
+                rope2.destroy();
+                rope.merge(rope3) catch unreachable;
+                final_len = rope.len();
+            }
+        }
+    }
+    interop.replyInt(ctx, final_len);
+    _ = rm.RedisModule_ReplicateVerbatim(ctx);
+}
