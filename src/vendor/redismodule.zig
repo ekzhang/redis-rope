@@ -1461,7 +1461,7 @@ pub export var RedisModule_LoadLongDouble: fn (*RedisModuleIO) callconv(.C) c_lo
 pub export var RedisModule_LoadDataTypeFromString: fn (*const RedisModuleString, *const RedisModuleType) callconv(.C) *anyopaque = undefined;
 pub export var RedisModule_LoadDataTypeFromStringEncver: fn (*const RedisModuleString, *const RedisModuleType, c_int) callconv(.C) *anyopaque = undefined;
 pub export var RedisModule_SaveDataTypeToString: fn (*RedisModuleCtx, *anyopaque, *const RedisModuleType) callconv(.C) *RedisModuleString = undefined;
-pub export var RedisModule_Log: fn (*RedisModuleCtx, [*c]const u8, [*c]const u8, ...) callconv(.C) void = undefined;
+pub export var RedisModule_Log: fn (?*RedisModuleCtx, [*c]const u8, [*c]const u8, ...) callconv(.C) void = undefined;
 pub export var RedisModule_LogIOError: fn (*RedisModuleIO, [*c]const u8, [*c]const u8, ...) callconv(.C) void = undefined;
 pub export var RedisModule__Assert: fn ([*c]const u8, [*c]const u8, c_int) callconv(.C) void = undefined;
 pub export var RedisModule_LatencyAddSample: fn ([*c]const u8, mstime_t) callconv(.C) void = undefined;
