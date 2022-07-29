@@ -246,7 +246,7 @@ pub fn ropeDelRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
     var start = try interop.strToIndex(args[2]);
     var end = try interop.strToIndex(args[3]);
 
-    var final_len: u64 = 0;
+    var removed_bytes: u64 = 0;
     if (try readKey(key)) |rope| {
         const len = rope.len();
         if (len > 0) {
@@ -255,16 +255,24 @@ pub fn ropeDelRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
             if (s == 0 and e == len - 1) {
                 // Special case: Delete the entire rope.
                 _ = rm.RedisModule_UnlinkKey(key);
-            } else {
+                removed_bytes = len;
+            } else if (s <= e) {
                 // TODO: Figure out what to do about error handling here.
                 const rope2 = try rope.split(s);
                 const rope3 = rope2.split(e - s + 1) catch unreachable;
-                rope2.destroy();
                 rope.merge(rope3) catch unreachable;
-                final_len = rope.len();
+                removed_bytes = e - s + 1;
+
+                if (std.Thread.spawn(.{ .stack_size = 8192 }, Rope.destroy, .{rope2})) |thread| {
+                    thread.detach();
+                } else |_| {
+                    // In the rare case that spawning a background thread fails, we fall
+                    // back to freeing the rope's memory synchronously.
+                    rope2.destroy();
+                }
             }
         }
     }
-    interop.replyInt(ctx, final_len);
+    interop.replyInt(ctx, removed_bytes);
     _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }
