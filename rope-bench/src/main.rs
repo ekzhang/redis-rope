@@ -140,6 +140,39 @@ async fn rope_len(client: Client) -> Result<()> {
     Ok(())
 }
 
+async fn manipulation(client: Client) -> Result<()> {
+    let conn = &mut client.get_async_connection().await?;
+
+    cmd("ROPE.APPEND a foobar").query_async(conn).await?;
+    cmd("ROPE.INSERT a 3 baz").query_async(conn).await?;
+    let s: String = cmd("ROPE.GETRANGE a 0 -1").query_async(conn).await?;
+    assert_eq!(s, "foobazbar");
+    let x: i64 = cmd("ROPE.LEN a").query_async(conn).await?;
+    assert_eq!(x, 9);
+    for (i, r) in [(-2, Some("a")), (-200, None), (5, Some("z")), (9, None)] {
+        let code = format!("ROPE.GET a {i}");
+        let c: Option<String> = cmd(&code).query_async(conn).await?;
+        assert_eq!(c.as_deref(), r);
+    }
+    let x: i64 = cmd("ROPE.DELRANGE a 6 2").query_async(conn).await?;
+    assert_eq!(x, 0);
+    let x: i64 = cmd("ROPE.DELRANGE a 6 -4").query_async(conn).await?;
+    assert_eq!(x, 0);
+    let x: i64 = cmd("ROPE.DELRANGE a 10 11").query_async(conn).await?;
+    assert_eq!(x, 0);
+    let s: String = cmd("ROPE.GETRANGE a 0 -1").query_async(conn).await?;
+    assert_eq!(s, "foobazbar");
+    let x: i64 = cmd("ROPE.DELRANGE a -5 5").query_async(conn).await?;
+    assert_eq!(x, 2);
+    let s: String = cmd("ROPE.GETRANGE a 0 -1").query_async(conn).await?;
+    assert_eq!(s, "foobbar");
+    let x: i64 = cmd("ROPE.DELRANGE a 0 6").query_async(conn).await?;
+    assert_eq!(x, 7);
+    assert!(conn.get::<_, Option<String>>("a").await?.is_none());
+
+    Ok(())
+}
+
 async fn append_64mb(client: Client) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
@@ -185,6 +218,7 @@ async fn main() -> Result<()> {
         println!("{}", Blue.paint("------ STARTING TESTS ------"));
         run_test(&client, basic_ops).await?;
         run_test(&client, rope_len).await?;
+        run_test(&client, manipulation).await?;
         run_test(&client, append_64mb).await?;
         run_test(&client, append_64mb_str).await?;
         println!("{}", Blue.paint("----- ALL TESTS PASSED -----"));
