@@ -9,7 +9,7 @@ const rm = @import("vendor/redismodule.zig");
 pub const RedisError = error{ Arity, WrongType, OutOfMemory, BadIndex, SetValue };
 
 /// Convert a RedisError union to the corresponding message reply.
-fn reply(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
+fn finishCommand(ctx: *rm.RedisModuleCtx, result: RedisError!void) c_int {
     return if (result) rm.REDISMODULE_OK else |err| switch (err) {
         RedisError.Arity => rm.RedisModule_WrongArity(ctx),
         RedisError.WrongType => rm.RedisModule_ReplyWithError(ctx, rm.REDISMODULE_ERRORMSG_WRONGTYPE),
@@ -25,7 +25,7 @@ pub fn redisCommand(comptime func: fn (*rm.RedisModuleCtx, []*rm.RedisModuleStri
         fn command(ctx: *rm.RedisModuleCtx, argv: [*c]*rm.RedisModuleString, argc: c_int) callconv(.C) c_int {
             rm.RedisModule_AutoMemory(ctx);
             const args = argv[0..@intCast(usize, argc)];
-            return reply(ctx, func(ctx, args));
+            return finishCommand(ctx, func(ctx, args));
         }
     }.command;
 }
@@ -44,6 +44,16 @@ pub fn strToSlice(str: *const rm.RedisModuleString) []const u8 {
     var len: usize = undefined;
     const ptr = rm.RedisModule_StringPtrLen(str, &len);
     return ptr[0..len];
+}
+
+pub fn replyNull(ctx: *rm.RedisModuleCtx) void {
+    _ = rm.RedisModule_ReplyWithNull(ctx);
+}
+pub fn replyInt(ctx: *rm.RedisModuleCtx, int: anytype) void {
+    _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(c_longlong, int));
+}
+pub fn replyString(ctx: *rm.RedisModuleCtx, string: []u8) void {
+    _ = rm.RedisModule_ReplyWithStringBuffer(ctx, string.ptr, string.len);
 }
 
 /// A memory allocator that uses the `RedisModule_*` memory allocation functions.

@@ -124,7 +124,7 @@ pub fn ropeLen(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
     if (args.len != 2) return RedisError.Arity;
     const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ);
     const len = if (try readKey(key)) |rope| rope.len() else 0;
-    _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(c_longlong, len));
+    interop.replyInt(ctx, len);
 }
 
 /// Read a single byte character of a rope.
@@ -143,9 +143,9 @@ pub fn ropeGet(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
     }
 
     if (result) |c| {
-        _ = rm.RedisModule_ReplyWithStringBuffer(ctx, &[1]u8{c}, 1);
+        interop.replyString(ctx, &.{c});
     } else {
-        _ = rm.RedisModule_ReplyWithNull(ctx);
+        interop.replyNull(ctx);
     }
 }
 
@@ -177,13 +177,13 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
                     }
                     std.debug.assert(cursor == slice.len);
                 }
-                _ = rm.RedisModule_ReplyWithStringBuffer(ctx, slice.ptr, slice.len);
+                interop.replyString(ctx, slice);
                 return;
             }
         }
     }
 
-    _ = rm.RedisModule_ReplyWithNull(ctx);
+    interop.replyNull(ctx);
 }
 
 /// Append a string onto the end of a rope.
@@ -198,10 +198,10 @@ pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
 
     if (try readKey(key)) |rope| {
         try rope.merge(rope2);
-        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, rope.len()));
+        interop.replyInt(ctx, rope.len());
     } else {
         try setKey(key, rope2);
-        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
+        interop.replyInt(ctx, bytes.len);
     }
     _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }
@@ -230,10 +230,10 @@ pub fn ropeInsert(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
             rope.merge(rope2) catch unreachable;
             rope.merge(rope3) catch unreachable;
         }
-        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, rope.len()));
+        interop.replyInt(ctx, rope.len());
     } else {
         try setKey(key, rope2);
-        _ = rm.RedisModule_ReplyWithLongLong(ctx, @intCast(i64, bytes.len));
+        interop.replyInt(ctx, bytes.len);
     }
     _ = rm.RedisModule_ReplicateVerbatim(ctx);
 }
