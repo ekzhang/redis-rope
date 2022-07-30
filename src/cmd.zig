@@ -120,6 +120,15 @@ fn getIndex(index: i64, len: u64) u64 {
     return std.math.min(@intCast(u64, index), len);
 }
 
+/// Similar to getIndex, but this handles inclusive end indices.
+fn getEndIndex(index: i64, len: u64) u64 {
+    if (index < 0) {
+        const neg = std.math.absCast(index) - 1;
+        return len -| neg;
+    }
+    return std.math.min(@intCast(u64, index) + 1, len);
+}
+
 /// Gets the length of a rope in bytes.
 pub fn ropeLen(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void {
     if (args.len != 2) return RedisError.Arity;
@@ -161,15 +170,15 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
         const len = rope.len();
         if (len > 0) {
             const s = getIndex(start, len);
-            const e = std.math.min(getIndex(end, len), len - 1);
-            if (s <= e) {
+            const e = getEndIndex(end, len);
+            if (s < e) {
                 var slice: []u8 = undefined;
-                var chunks = rope.chunks(s, e + 1);
+                var chunks = rope.chunks(s, e);
                 if (chunks.remaining() == 1) {
                     slice = chunks.next().?;
                     std.debug.assert(chunks.next() == null);
                 } else {
-                    slice = try interop.allocator.alloc(u8, e - s + 1);
+                    slice = try interop.allocator.alloc(u8, e - s);
                     defer interop.allocator.free(slice);
                     var cursor: u64 = 0;
                     while (chunks.next()) |buf| {
@@ -251,17 +260,17 @@ pub fn ropeDelRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
         const len = rope.len();
         if (len > 0) {
             const s = getIndex(start, len);
-            const e = std.math.min(getIndex(end, len), len - 1);
-            if (s == 0 and e == len - 1) {
+            const e = getEndIndex(end, len);
+            if (s == 0 and e == len) {
                 // Special case: Delete the entire rope.
                 _ = rm.RedisModule_UnlinkKey(key);
                 removed_bytes = len;
-            } else if (s <= e) {
+            } else if (s < e) {
                 // TODO: Figure out what to do about error handling here.
                 const rope2 = try rope.split(s);
-                const rope3 = rope2.split(e - s + 1) catch unreachable;
+                const rope3 = rope2.split(e - s) catch unreachable;
                 rope.merge(rope3) catch unreachable;
-                removed_bytes = e - s + 1;
+                removed_bytes = e - s;
 
                 if (std.Thread.spawn(.{ .stack_size = 8192 }, Rope.destroy, .{rope2})) |thread| {
                     thread.detach();
