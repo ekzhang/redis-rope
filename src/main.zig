@@ -12,7 +12,7 @@ export const RopeGetRange_Command = interop.redisCommand(cmd.ropeGetRange);
 export const RopeAppend_Command = interop.redisCommand(cmd.ropeAppend);
 export const RopeInsert_Command = interop.redisCommand(cmd.ropeInsert);
 export const RopeDelRange_Command = interop.redisCommand(cmd.ropeDelRange);
-// export const RopeSplice_Command = interop.redisCommand(cmd.ropeSplice);
+export const RopeSplice_Command = interop.redisCommand(cmd.ropeSplice);
 
 export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
     if (rm.RedisModule_Init(ctx, "redisrope", 1, rm.REDISMODULE_APIVER_1) == rm.REDISMODULE_ERR) {
@@ -37,7 +37,7 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
         .{ "rope.append", RopeAppend_Command, "write deny-oom fast", 1, 1, 1 },
         .{ "rope.insert", RopeInsert_Command, "write deny-oom fast", 1, 1, 1 },
         .{ "rope.delrange", RopeDelRange_Command, "write fast", 1, 1, 1 },
-        // .{ "rope.splice", RopeSplice_Command, "write deny-oom fast", 1, 2, 1 },
+        .{ "rope.splice", RopeSplice_Command, "write deny-oom fast", 1, 2, 1 },
     };
 
     inline for (commands) |c| {

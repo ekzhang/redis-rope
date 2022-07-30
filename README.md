@@ -119,13 +119,15 @@ redis:6379> ROPE.GETRANGE key1 0 -1
 redis:6379> ROPE.APPEND key2 "goodbye"
 (integer) 7
 redis:6379> ROPE.SPLICE key1 key2 0 4
-(integer) 12
+1) (integer) 12
+2) (integer) 5
 redis:6379> ROPE.GETRANGE key1 0 -1
 "goodbye rod!"
 redis:6379> ROPE.GETRANGE key2 0 -1
 "hello"
 redis:6379> ROPE.SPLICE key1 key2
-(integer) 17
+1) (integer) 17
+2) (integer) 0
 redis:6379> ROPE.GETRANGE key1 0 -1
 "goodbye rod!hello"
 redis:6379> MEMORY USAGE key1
@@ -134,6 +136,8 @@ redis:6379> GET key2
 (nil)
 redis:6379> DEL key1
 (integer) 1
+redis:6379> GET key1
+(nil)
 ```
 
 ## Acknowledgements

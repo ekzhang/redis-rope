@@ -55,6 +55,9 @@ pub fn replyInt(ctx: *rm.RedisModuleCtx, int: anytype) void {
 pub fn replyString(ctx: *rm.RedisModuleCtx, string: []u8) void {
     _ = rm.RedisModule_ReplyWithStringBuffer(ctx, string.ptr, string.len);
 }
+pub fn replyArray(ctx: *rm.RedisModuleCtx, len: u64) void {
+    _ = rm.RedisModule_ReplyWithArray(ctx, @intCast(c_long, len));
+}
 
 /// A memory allocator that uses the `RedisModule_*` memory allocation functions.
 pub const allocator = Allocator{
