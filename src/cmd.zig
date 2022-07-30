@@ -28,7 +28,7 @@ pub var rope_tm: rm.RedisModuleTypeMethods = .{
 export fn ropeRdbLoad(io: *rm.RedisModuleIO, encver: c_int) ?*anyopaque {
     if (encver != 0) {
         // Can't load data with this version number.
-        rm.RedisModule_Log(null, "warning", "Can't load data with version %d", encver);
+        rm.RedisModule_LogIOError(io, "warning", "Can't load data with version %d", encver);
         return null;
     }
     const size = rm.RedisModule_LoadUnsigned(io);

@@ -75,11 +75,11 @@ fn redisAlloc(
     alignment: u29,
     len_align: u29,
     ret_addr: usize,
-) Allocator.Error![]u8 {
+) ![]u8 {
     _ = len_align;
     _ = ret_addr;
     std.debug.assert(alignment <= @alignOf(std.c.max_align_t));
-    const start = rm.RedisModule_TryAlloc(len) orelse return Allocator.Error.OutOfMemory;
+    const start = rm.RedisModule_TryAlloc(len) orelse return error.OutOfMemory;
     const ptr = @ptrCast([*]u8, start);
     return ptr[0..len];
 }
