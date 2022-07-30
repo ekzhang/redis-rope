@@ -176,6 +176,9 @@ fn concat_front(dest: []u8, src: []u8) void {
 }
 
 pub const Rope = struct {
+    pub const rope_size = @sizeOf(Rope);
+    pub const node_size = @sizeOf(Node);
+
     allocator: Allocator,
     root: ?*Node = null,
     suf_len: u8 = 0,
@@ -400,7 +403,7 @@ pub const Rope = struct {
 
     /// Returns the total memory usage of this data structure, in bytes.
     pub fn memusage(self: *const Rope) u64 {
-        return @sizeOf(Rope) + @sizeOf(Node) * self.numnodes();
+        return rope_size + node_size * self.numnodes();
     }
 
     /// Returns the total number of splay tree nodes in this data structure.

@@ -48,3 +48,8 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
 
     return rm.REDISMODULE_OK;
 }
+
+export fn RedisModule_OnUnload(ctx: *rm.RedisModuleCtx) void {
+    _ = ctx;
+    cmd.reserving_allocator.deinit();
+}

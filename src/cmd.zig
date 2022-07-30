@@ -7,6 +7,10 @@ const rm = @import("vendor/redismodule.zig");
 const interop = @import("interop.zig");
 const RedisError = interop.RedisError;
 const Rope = @import("rope.zig").Rope;
+const ReservingAllocator = @import("reserve.zig").ReservingAllocator;
+
+pub var reserving_allocator = ReservingAllocator(5).init(interop.allocator);
+const allocator = reserving_allocator.allocator();
 
 /// The type of a rope, initialized at module load time.
 pub var rope_type: *rm.RedisModuleType = undefined;
@@ -32,8 +36,8 @@ export fn ropeRdbLoad(io: *rm.RedisModuleIO, encver: c_int) ?*anyopaque {
         return null;
     }
     const size = rm.RedisModule_LoadUnsigned(io);
-    const bytes = interop.allocator.alloc(u8, size) catch return null;
-    defer interop.allocator.free(bytes);
+    const bytes = allocator.alloc(u8, size) catch return null;
+    defer allocator.free(bytes);
 
     const blocks = rm.RedisModule_LoadUnsigned(io);
     var i: u64 = 0;
@@ -47,7 +51,7 @@ export fn ropeRdbLoad(io: *rm.RedisModuleIO, encver: c_int) ?*anyopaque {
         } else return null;
     }
     std.debug.assert(cursor == size);
-    return Rope.create(interop.allocator, bytes) catch null;
+    return Rope.create(allocator, bytes) catch null;
 }
 
 export fn ropeRdbSave(io: *rm.RedisModuleIO, value: *anyopaque) void {
@@ -178,8 +182,8 @@ pub fn ropeGetRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
                     slice = chunks.next().?;
                     std.debug.assert(chunks.next() == null);
                 } else {
-                    slice = try interop.allocator.alloc(u8, e - s);
-                    defer interop.allocator.free(slice);
+                    slice = try allocator.alloc(u8, e - s);
+                    defer allocator.free(slice);
                     var cursor: u64 = 0;
                     while (chunks.next()) |buf| {
                         std.mem.copy(u8, slice[cursor..], buf[0..]);
@@ -202,7 +206,7 @@ pub fn ropeAppend(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
     const key = rm.RedisModule_OpenKey(ctx, args[1], rm.REDISMODULE_READ | rm.REDISMODULE_WRITE);
     const bytes = interop.strToSlice(args[2]);
 
-    const rope2 = try Rope.create(interop.allocator, bytes);
+    const rope2 = try Rope.create(allocator, bytes);
     errdefer rope2.destroy();
     std.debug.assert(rope2.len() == bytes.len);
 
@@ -223,7 +227,7 @@ pub fn ropeInsert(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
     const index = try interop.strToIndex(args[2]);
     const bytes = interop.strToSlice(args[3]);
 
-    const rope2 = try Rope.create(interop.allocator, bytes);
+    const rope2 = try Rope.create(allocator, bytes);
     errdefer rope2.destroy();
     std.debug.assert(rope2.len() == bytes.len);
 
@@ -235,8 +239,11 @@ pub fn ropeInsert(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !void 
         } else if (i == rope.len()) {
             try rope.merge(rope2);
         } else {
+            try reserving_allocator.ensure(Rope.node_size, 3);
             const rope3 = try rope.split(i);
-            // TODO: Figure out what to do about error handling here.
+            // These are infallible due to the earlier reservation. Each merge
+            // operation allocates at most one Node, and the split operation
+            // allocates at most 1 Node and one Rope.
             rope.merge(rope2) catch unreachable;
             rope.merge(rope3) catch unreachable;
         }
@@ -266,7 +273,10 @@ pub fn ropeDelRange(ctx: *rm.RedisModuleCtx, args: []*rm.RedisModuleString) !voi
                 _ = rm.RedisModule_UnlinkKey(key);
                 removed_bytes = len;
             } else if (s < e) {
-                // TODO: Figure out what to do about error handling here.
+                try reserving_allocator.ensure(Rope.node_size, 3);
+                try reserving_allocator.ensure(Rope.rope_size, 2);
+                // Each split operation allocates at most one Node and one Rope,
+                // and the merge operation allocates at most one Node.
                 const rope2 = try rope.split(s);
                 const rope3 = rope2.split(e - s) catch unreachable;
                 rope.merge(rope3) catch unreachable;
