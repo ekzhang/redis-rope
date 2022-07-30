@@ -19,6 +19,11 @@ export fn RedisModule_OnLoad(ctx: *rm.RedisModuleCtx) c_int {
         return rm.REDISMODULE_ERR;
     }
 
+    if (@ptrCast(?*const anyopaque, rm.RedisModule_TryAlloc) == null) {
+        rm.RedisModule_Log(ctx, "warning", "FATAL: Redis version is too old, does not support TryAlloc");
+        return rm.REDISMODULE_ERR;
+    }
+
     if (rm.RedisModule_CreateDataType(ctx, "Rope--ekz", 0, &cmd.rope_tm)) |ty| {
         cmd.rope_type = ty;
     } else {
