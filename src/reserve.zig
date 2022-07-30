@@ -48,7 +48,8 @@ pub fn ReservingAllocator(comptime capacity: usize) type {
                 self.entries.ensureUnusedCapacity(extra) catch return error.OutOfMemory;
                 while (extra > 0) {
                     extra -= 1;
-                    self.entries.appendAssumeCapacity(try self.inner.rawAlloc(len, 8, 0, 0));
+                    const buf = try self.inner.rawAlloc(len, @alignOf(std.c.max_align_t), 0, 0);
+                    self.entries.appendAssumeCapacity(buf);
                 }
             }
         }
@@ -65,6 +66,7 @@ pub fn ReservingAllocator(comptime capacity: usize) type {
         }
 
         fn alloc(self: *Self, len: usize, alignment: u29, len_align: u29, ret_addr: usize) ![]u8 {
+            std.debug.assert(alignment <= @alignOf(std.c.max_align_t));
             if (self.allocReserved(len)) |buf| {
                 return buf;
             }
