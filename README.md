@@ -25,6 +25,16 @@ Some data structures tend to be too theoretical. This module attempts to provide
 - **Stack size is limited and should not overflow.** No operations on arbitrary trees are implemented recursively. We do not create unbounded stack buffers.
 - **Micro-optimizations are not accepted if they make the code less clear.** Safety and correctness is paramount, and code needs to be easily understood by the reader.
 
+### Example / Benchmark
+
+Ropes are particularly good at speeding up complex operations on large strings. The following graph shows how performance for ropes scales on 1000 random string SPLICE operations, compared to an equivalent implementation with ordinary Redis strings. (These operations are pipelined to better measure their CPU performance; see the [benchmark code in Rust](rope-bench/src/main.rs).)
+
+<p align="center">
+<img src="https://i.imgur.com/yJHA0xj.png" alt="Latency graph comparing redis-rope and native Redis strings" width="600">
+</p>
+
+Each time the length of the string doubles, the basic type gets exponentially slower because it does not scale to large data as well, while the `redis-rope` type provided by this module stays fast.
+
 ## Installation
 
 The `redis-rope` module has been tested with Redis 7.0+. To install, download the appropriate shared library `libredisrope.so` for your platform and load the module from the command line:
