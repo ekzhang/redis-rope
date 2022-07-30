@@ -2,18 +2,18 @@
 <img src="https://i.imgur.com/j1mQdBH.png" alt="redis-rope" width="800">
 </p>
 
-A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)>) data type for [Redis](https://redis.io), written in Zig and bundled as a [module](https://redis.io/docs/reference/modules/).
+A fast and versatile [rope](<https://en.wikipedia.org/wiki/Rope_(data_structure)>) data type for large strings in [Redis](https://redis.io), distributed as a native [module](https://redis.io/docs/reference/modules/).
 
 ## Overview
 
-Ropes store an ordered, indexed sequence of bytes, similar to binary strings. Unlike strings, ropes let you do some operations really fast (in logarithmic time):
+Ropes are a more efficient data structure for large strings (indexed sequences of bytes). Unlike ordinary strings, ropes let you do some operations up to exponentially faster than their counterparts:
 
 - **Add bytes** to the beginning, middle, or end — any index you want.
 - **Delete any rope substring** or move it to a different position within the rope.
 - **Splice / concatenate any substring** of a rope with any other rope.
 - **Read any substring** with random access.
 
-The ropes in this module are backed by [splay trees](https://en.wikipedia.org/wiki/Splay_tree), which are a self-adjusting data structure that has amortized worst-case performance, while recently-accessed indices are also quick to access in subsequent operations.
+The ropes in this module are backed by [splay trees](https://en.wikipedia.org/wiki/Splay_tree), which are a self-adjusting data structure that has logarithmic amortized worst-case performance, while recently-accessed indices are also quick to access in subsequent operations. Each splay tree node stores between 64 and 127 bytes of data.
 
 ### Design
 

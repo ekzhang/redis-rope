@@ -1,15 +1,17 @@
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
+use std::sync::{Arc, Mutex};
 
-use ansi_term::Color::{Blue, Green, Red};
+use ansi_term::Color::{Blue, Green, Red, Yellow};
 use ansi_term::Style;
 use anyhow::{ensure, Result};
 use clap::Parser;
 use indoc::formatdoc;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use redis::{AsyncCommands, Client, Cmd};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use redis::{AsyncCommands, Client, Cmd, Script, ScriptInvocation, ToRedisArgs};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
@@ -83,24 +85,57 @@ fn function_name<T>(_: &T) -> &'static str {
     std::any::type_name::<T>()
 }
 
+/// A timer for critical sections of code.
+#[derive(Clone, Default)]
+struct Timer {
+    inner: Arc<Mutex<(Option<Instant>, Option<Duration>)>>,
+}
+
+impl Timer {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn start(&self) {
+        self.inner.lock().unwrap().0 = Some(Instant::now());
+    }
+
+    pub fn stop(&self) {
+        let mut values = self.inner.lock().unwrap();
+        if let Some(ts) = values.0 {
+            values.1 = Some(ts.elapsed());
+        }
+    }
+
+    pub fn get(&self) -> Option<Duration> {
+        self.inner.lock().unwrap().1
+    }
+}
+
 async fn run_test<F, Fut>(client: &Client, func: F) -> Result<()>
 where
-    F: Fn(Client) -> Fut,
+    F: Fn(Client, Timer) -> Fut,
     Fut: Future<Output = Result<()>>,
 {
     let name = function_name(&func);
     print!("{name} ... ");
 
+    let timer = Timer::new();
     let start = Instant::now();
-    let result = func(client.clone()).await;
+    let result = func(client.clone(), timer.clone()).await;
 
     let status = match &result {
         Ok(()) => Green.paint("ok!"),
         Err(_) => Red.paint("ERR"),
     };
+    let dimmed = Style::new().dimmed();
     let duration = format!("({:?})", start.elapsed());
-    let duration = Style::new().dimmed().paint(duration);
+    let duration = dimmed.paint(duration);
     println!("{status}  {duration}");
+    if let Some(duration) = timer.get() {
+        let text = format!("critical section: {:?}", duration);
+        println!("  {} {}", dimmed.paint("└──"), Yellow.paint(text));
+    }
 
     result
 }
@@ -115,7 +150,22 @@ fn cmd(cmd: &str) -> Cmd {
     builder
 }
 
-async fn basic_ops(client: Client) -> Result<()> {
+fn inv(
+    script: &Script,
+    keys: impl IntoIterator<Item = impl ToRedisArgs>,
+    args: impl IntoIterator<Item = impl ToRedisArgs>,
+) -> ScriptInvocation {
+    let mut builder = script.prepare_invoke();
+    for key in keys {
+        builder.key(key);
+    }
+    for arg in args {
+        builder.arg(arg);
+    }
+    builder
+}
+
+async fn basic_ops(client: Client, _: Timer) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
     conn.set("hello", "world").await?;
@@ -125,7 +175,7 @@ async fn basic_ops(client: Client) -> Result<()> {
     Ok(())
 }
 
-async fn rope_len(client: Client) -> Result<()> {
+async fn rope_len(client: Client, _: Timer) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
     let result: i64 = cmd("ROPE.LEN hello").query_async(conn).await?;
@@ -140,7 +190,7 @@ async fn rope_len(client: Client) -> Result<()> {
     Ok(())
 }
 
-async fn manipulation(client: Client) -> Result<()> {
+async fn manipulation(client: Client, _: Timer) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
     cmd("ROPE.APPEND a foobar").query_async(conn).await?;
@@ -173,7 +223,7 @@ async fn manipulation(client: Client) -> Result<()> {
     Ok(())
 }
 
-async fn append_64mb(client: Client) -> Result<()> {
+async fn append_64mb(client: Client, _: Timer) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
     let append_cmd = cmd(&format!("ROPE.APPEND a {}", "1234567890123456".repeat(64)));
@@ -189,7 +239,7 @@ async fn append_64mb(client: Client) -> Result<()> {
     Ok(())
 }
 
-async fn append_64mb_str(client: Client) -> Result<()> {
+async fn append_64mb_str(client: Client, _: Timer) -> Result<()> {
     let conn = &mut client.get_async_connection().await?;
 
     let append_cmd = cmd(&format!("APPEND a {}", "1234567890123456".repeat(64)));
@@ -201,6 +251,86 @@ async fn append_64mb_str(client: Client) -> Result<()> {
     let (result,): (i64,) = pipe.query_async(conn).await?;
     ensure!(result == 2_i64.pow(26));
     conn.del("a").await?;
+
+    Ok(())
+}
+
+async fn splicer_1m(client: Client, timer: Timer) -> Result<()> {
+    let conn = &mut client.get_async_connection().await?;
+
+    let text = "abcd".repeat(262144);
+    let len = text.len() as u64;
+    cmd(&format!("ROPE.APPEND a {text}"))
+        .query_async(conn)
+        .await?;
+
+    let mut rng = StdRng::from_seed([1; 32]);
+    let mut pipe = redis::pipe();
+    let mut current_len = 0;
+    for _ in 0..1000 {
+        let start = rng.gen_range(0..len - current_len);
+        let end = rng.gen_range(start..len - current_len);
+        pipe.add_command(cmd(&format!("ROPE.SPLICE a b {start} {end}")))
+            .ignore();
+        current_len = end - start + 1;
+    }
+    timer.start();
+    pipe.query_async(conn).await?;
+    timer.stop();
+
+    let res1: String = cmd("ROPE.GETRANGE a 0 -1").query_async(conn).await?;
+    let res2: String = cmd("ROPE.GETRANGE b 0 -1").query_async(conn).await?;
+    let res = res1 + &res2;
+    for c in "abcd".chars() {
+        // Ensure that characters were preserved.
+        ensure!(res.matches(c).count() == text.matches(c).count());
+    }
+    conn.del(&["a", "b"]).await?;
+
+    Ok(())
+}
+
+async fn splicer_1m_str(client: Client, timer: Timer) -> Result<()> {
+    const SCRIPT_CODE: &str = r#"
+local src = redis.call('GET', KEYS[1]) or ''
+local dest = redis.call('GET', KEYS[2]) or ''
+redis.call('SET', KEYS[2], string.sub(src, ARGV[1], ARGV[2]))
+redis.call('SET', KEYS[1], string.sub(src, 1, ARGV[1] - 1) .. dest .. string.sub(src, ARGV[2] + 1))
+return redis.status_reply('OK')
+"#;
+
+    let conn = &mut client.get_async_connection().await?;
+    let script = Script::new(SCRIPT_CODE);
+    let hash = script.get_hash();
+
+    let first_call = inv(&script, ["a", "b"], [1, 2]);
+    ensure!(first_call.invoke_async::<_, ()>(conn).await.is_ok()); // prepare
+
+    let text = "abcd".repeat(262144);
+    let len = text.len() as u64;
+    cmd(&format!("SET a {text}")).query_async(conn).await?;
+
+    let mut rng = StdRng::from_seed([1; 32]);
+    let mut pipe = redis::pipe();
+    let mut current_len = 0;
+    for _ in 0..1000 {
+        let start = rng.gen_range(0..len - current_len) + 1;
+        let end = rng.gen_range(start..=len - current_len);
+        pipe.add_command(cmd(&format!("EVALSHA {hash} 2 a b {start} {end}")))
+            .ignore();
+        current_len = end - start + 1;
+    }
+    timer.start();
+    pipe.query_async(conn).await?;
+    timer.stop();
+
+    let (res1, res2): (String, String) = conn.get(&["a", "b"]).await?;
+    let res = res1 + &res2;
+    for c in "abcd".chars() {
+        // Ensure that characters were preserved.
+        ensure!(res.matches(c).count() == text.matches(c).count());
+    }
+    conn.del(&["a", "b"]).await?;
 
     Ok(())
 }
@@ -221,6 +351,8 @@ async fn main() -> Result<()> {
         run_test(&client, manipulation).await?;
         run_test(&client, append_64mb).await?;
         run_test(&client, append_64mb_str).await?;
+        run_test(&client, splicer_1m).await?;
+        run_test(&client, splicer_1m_str).await?;
         println!("{}", Blue.paint("----- ALL TESTS PASSED -----"));
     }
 
