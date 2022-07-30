@@ -57,3 +57,22 @@ jobs:
       - run: cargo +nightly fmt -- --check
 
       - run: cargo clippy -- -D warnings
+
+  artifacts:
+    name: Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: goto-bus-stop/setup-zig@v1
+        with:
+          version: 0.9.0
+
+      - uses: extractions/setup-just@v1
+
+      - run: just build-artifacts
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: libredisrope
+          path: zig-out/artifacts
