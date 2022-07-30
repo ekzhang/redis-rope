@@ -33,7 +33,7 @@ Ropes are particularly good at speeding up complex operations on large strings. 
 <img src="https://i.imgur.com/yJHA0xj.png" alt="Latency graph comparing redis-rope and native Redis strings" width="600">
 </p>
 
-Each time the length of the string doubles, the basic type gets exponentially slower because it does not scale to large data as well, while the `redis-rope` type provided by this module stays fast.
+For small strings, there is not much difference. However, each time the length of the string doubles, the basic type gets exponentially slower because it does not scale to large data as well, while the `redis-rope` type provided by this module stays fast.
 
 ## Installation
 
