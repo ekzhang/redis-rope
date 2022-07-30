@@ -11,6 +11,7 @@ pub fn build(b: *std.build.Builder) void {
     const lib = b.addSharedLibrary("redisrope", "src/main.zig", .unversioned);
     lib.setBuildMode(mode);
     lib.setTarget(target);
+    lib.linkSystemLibrary("pthread");
     lib.install();
 
     const main_tests = b.addTest("src/test.zig");
