@@ -381,21 +381,27 @@ pub const Rope = struct {
     /// here. For example, they have static optimality and are guaranteed to use
     /// only linear time when accessing nodes in inorder traversal.
     pub fn get(self: *Rope, i: u64) ?u8 {
+        const slice = self.get_scan(i) orelse return null;
+        return slice[0];
+    }
+
+    /// Get a byte of the rope, also returning any remaining contiguous bytes.
+    fn get_scan(self: *Rope, i: u64) ?[]u8 {
         const length = self.len();
         if (i >= length) {
             return null;
         } else if (i >= length - self.suf_len) {
-            return self.suf_buf[i - (length - self.suf_len)];
+            return self.suf_buf[i - (length - self.suf_len) .. self.suf_len];
         } else {
             var node = self.root.?;
             std.debug.assert(i < node.size);
             node = access(node, i);
             self.root = node;
-            return node.data[i - (if (node.child[0]) |c| c.size else 0)];
+            return node.data[i - (if (node.child[0]) |c| c.size else 0) .. node.len];
         }
     }
 
-    /// Return an iterator over chunks in a range of bytes.
+    /// Return an efficient iterator over chunks in a range of bytes.
     pub fn chunks(self: *Rope, start: u64, end: u64) Chunks {
         std.debug.assert(start <= end and end <= self.len());
         return .{ .rope = self, .start = start, .end = end };
@@ -431,8 +437,12 @@ pub const Chunks = struct {
             return null;
         }
         const len = std.math.min(self.end - self.start, block_size);
-        for (self.buf[0..len]) |_, i| {
-            self.buf[i] = self.rope.get(self.start + i).?;
+        var i: u64 = 0;
+        while (i < len) {
+            const slice = self.rope.get_scan(self.start + i).?;
+            const k = std.math.min(slice.len, len - i);
+            std.mem.copy(u8, self.buf[i..], slice[0..k]);
+            i += k;
         }
         self.start += len;
         return self.buf[0..len];
